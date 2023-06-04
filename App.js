@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState } from "react";
 import { Calendar } from "react-native-calendars";
 import { styles } from "./Calendar.style";
 import { View } from "react-native";
@@ -8,15 +8,11 @@ function calculerCycle(dateRegles) {
   const dateReglesObj = new Date(dateRegles);
 
   // Calculer la date approximative de l'ovulation
-  const ovulation = new Date(
-    dateReglesObj.getTime() + 14 * 24 * 60 * 60 * 1000
-  );
+  const ovulation = new Date(dateReglesObj.getTime() + 14 * 24 * 60 * 60 * 1000);
 
   // Calculer la période de fécondité
-  const debutFertilite = new Date(
-    ovulation.getTime() - 4 * 24 * 60 * 60 * 1000
-  );
-  const finFertilite = new Date(ovulation.getTime() + 2 * 24 * 60 * 60 * 1000);
+  const debutFertilite = new Date(ovulation.getTime() - 4 * 24 * 60 * 60 * 1000);
+  const finFertilite = new Date(ovulation.getTime() + 10 * 24 * 60 * 60 * 1000);
 
   // Calculer les dates des règles suivantes pour les 12 prochains mois
   const cycles = [];
@@ -35,7 +31,6 @@ function calculerCycle(dateRegles) {
   };
 }
 
-
 export default function App() {
   const [selected, setSelected] = useState("");
   const [cycle, setCycle] = useState(null);
@@ -43,7 +38,49 @@ export default function App() {
   const handlePressDay = (day) => {
     setSelected(day.dateString);
     const calculatedCycle = calculerCycle(day.dateString);
-    setCycle(calculatedCycle); // Update the cycle state with the calculated cycle data
+    setCycle(calculatedCycle); // Mettre à jour le state "cycle" avec les données de cycle calculées
+  };
+
+  const renderCustomDay = (day, selected, cycle) => {
+    const formattedDay = day.dateString;
+    const markedDates = {};
+
+    if (formattedDay === selected) {
+      markedDates[formattedDay] = { startingDay: true, color: "#FFADAD" };
+    }
+
+    if (cycle) {
+      // Marquer les jours des règles (1 jusqu'au 5) en #FFADAD
+      if (cycle.cycles.includes(formattedDay)) {
+        markedDates[formattedDay] = { startingDay: true, color: "#FFADAD" };
+        markedDates[new Date(formattedDay).getTime() + 4 * 24 * 60 * 60 * 1000] = { color: "#FFADAD" };
+      }
+
+      // Marquer la période de fécondité (9 jusqu'au 15) en #E2445C
+      if (
+        formattedDay >= cycle.debut_fertilite &&
+        formattedDay <= cycle.fin_fertilite
+      ) {
+        markedDates[formattedDay] = { color: "#E2445C" };
+      }
+
+      // Marquer le jour d'ovulation (14) en #E2445C contour
+      if (formattedDay === cycle.ovulation) {
+        markedDates[formattedDay] = { color: "#E2445C", marked: true, dotColor: "#E2445C" };
+      }
+
+      // Marquer les cinq premiers jours de règles (29 jusqu'au 2) en #FFADAD
+      const nextCycle = new Date(cycle.premier_jour_regles).getTime() + 28 * 24 * 60 * 60 * 1000;
+      const nextCycleDay = new Date(nextCycle).toISOString().split("T")[0];
+      if (
+        formattedDay >= cycle.premier_jour_regles ||
+        (formattedDay <= nextCycleDay && formattedDay >= nextCycleDay - 4 * 24 * 60 * 60 * 1000)
+      ) {
+        markedDates[formattedDay] = { startingDay: true, color: "#FFADAD" };
+      }
+    }
+
+    return markedDates;
   };
 
   return (
@@ -51,52 +88,8 @@ export default function App() {
       <Calendar
         style={styles.theme}
         onDayPress={handlePressDay}
-        markingType={"period"}
-        markedDates={{
-          [selected]: {
-            startingDay: true,
-            color: "#FFADAD",
-          },
-          ...(cycle && {
-            // Marquer les jours des règles #FFADAD
-            ...cycle.cycles.reduce((marked, date) => {
-              marked[date] = { startingDay: true, color: "#FFADAD" };
-              marked[new Date(date).getTime() + 4 * 24 * 60 * 60 * 1000] = { color: "#FFADAD" };
-              return marked;
-            }, {}),
-            // Marquer la période de fécondité en #E2445C
-            [cycle.debut_fertilite]: {
-              startingDay: true,
-              color: "#E2445C",
-            },
-            [cycle.fin_fertilite]: {
-              endingDay: true,
-              color: "#E2445C",
-            },
-            // Marquer la date d'ovulation en #E2445C contour
-            [cycle.ovulation]: {
-              color: "#E2445C",
-            },
-            // Marquer les cinq premiers jours de règles en #FFADAD
-            [cycle.premier_jour_regles]: {
-              startingDay: true,
-              color: "#FFADAD",
-            },
-            [new Date(cycle.premier_jour_regles).getTime() + 1 * 24 * 60 * 60 * 1000]: {
-              color: "#FFADAD",
-            },
-            [new Date(cycle.premier_jour_regles).getTime() + 2 * 24 * 60 * 60 * 1000]: {
-              color: "#FFADAD",
-            },
-            [new Date(cycle.premier_jour_regles).getTime() + 3 * 24 * 60 * 60 * 1000]: {
-              color: "#FFADAD",
-            },
-            [new Date(cycle.premier_jour_regles).getTime() + 4 * 24 * 60 * 60 * 1000]: {
-              color: "#FFADAD",
-            },
-          }),
-        }}
-        
+        markingType="custom"
+        markedDates={renderCustomDay(selected, cycle)}
       />
     </View>
   );
